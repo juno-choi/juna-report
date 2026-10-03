@@ -13,10 +13,13 @@ picks:
     longitude: ${HOME_LONGITUDE:127.167}
   # Kakao Local API allows up to 20000m.
   search-radius-meters: 20000
-  # Radius used to find a restaurant / bakery cafe around each outing place.
+  # Radius used to find a restaurant around each outing place.
   course-radius-meters: 5000
+  # The bakery cafe is searched within this radius of the restaurant, keeping both in one neighborhood.
+  same-area-radius-meters: 1000
   festival-radius-km: 30
   course-count: 3
+  shopping-course-count: 1
   history:
     file: data/history.json
     keep-weeks: 4

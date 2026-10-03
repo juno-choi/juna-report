@@ -48,7 +48,10 @@ public class SlackMessageBuilder {
 			blocks.add(section("이번 주는 새로 추천할 장소를 찾지 못했어요."));
 		}
 		for (int i = 0; i < picks.courses().size(); i++) {
-			blocks.add(section(courseText(i + 1, picks.courses().get(i))));
+			blocks.add(section(courseText("코스 %d.".formatted(i + 1), picks.courses().get(i))));
+		}
+		for (Course shoppingCourse : picks.shoppingCourses()) {
+			blocks.add(section(courseText("🛍 쇼핑 코스.", shoppingCourse)));
 		}
 
 		if (!picks.festivals().isEmpty()) {
@@ -92,11 +95,11 @@ public class SlackMessageBuilder {
 		return theme;
 	}
 
-	private String courseText(int number, Course course) {
+	private String courseText(String label, Course course) {
 		Place outing = course.outing();
 		StringBuilder text = new StringBuilder();
-		text.append("*코스 %d. %s* (%s · %.0fkm)\n".formatted(
-				number, link(outing.url(), outing.name()), escape(outing.category()), home.distanceKmTo(outing.point())));
+		text.append("*%s %s* (%s · %.0fkm)\n".formatted(
+				label, link(outing.url(), outing.name()), escape(outing.category()), home.distanceKmTo(outing.point())));
 		text.append(escape(outing.address())).append('\n');
 		if (course.restaurant() != null) {
 			text.append("🍽 ").append(placeLine(course.restaurant())).append('\n');

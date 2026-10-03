@@ -14,6 +14,7 @@ public record WeekendPicks(
 		OutingMode mode,
 		SeasonalTheme theme,
 		List<Course> courses,
+		List<Course> shoppingCourses,
 		List<Festival> festivals,
 		List<Performance> performances
 ) {
@@ -25,7 +26,7 @@ public record WeekendPicks(
 	/** Ids to remember so that the same places and performances are not repeated next week. */
 	public List<String> recommendedIds() {
 		return Stream.concat(
-				courses.stream().flatMap(course -> course.placeIds().stream()),
+				Stream.concat(courses.stream(), shoppingCourses.stream()).flatMap(course -> course.placeIds().stream()),
 				performances.stream().map(Performance::id)).toList();
 	}
 }

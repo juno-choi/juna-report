@@ -36,6 +36,9 @@ public class RecommendationService {
 	private static final String INDOOR_KEYWORD = "미술관";
 	private static final String RESTAURANT_KEYWORD = "맛집";
 	private static final String BAKERY_KEYWORD = "베이커리 카페";
+	private static final String CAFE_KEYWORD = "카페";
+	private static final List<String> SHOPPING_KEYWORDS = List.of("백화점", "복합쇼핑몰");
+	private static final List<String> SHOPPING_NAME_NOISE = List.of("예정", "안내데스크");
 
 	private final PicksProperties properties;
 	private final WeatherClient weatherClient;
@@ -70,13 +73,15 @@ public class RecommendationService {
 		Set<String> usedIds = new HashSet<>(recentIds);
 		List<Course> courses = new ArrayList<>();
 		for (Place outing : pickOutings(mode, theme, usedIds)) {
-			usedIds.add(outing.id());
-			Place restaurant = pickNearby(RESTAURANT_KEYWORD, KakaoLocalClient.RESTAURANT, outing.point(), usedIds);
-			Place bakery = pickNearby(BAKERY_KEYWORD, KakaoLocalClient.CAFE, outing.point(), usedIds);
-			courses.add(new Course(outing, restaurant, bakery));
+			courses.add(buildCourse(outing, properties.courseRadiusMeters(), usedIds));
+		}
+		List<Course> shoppingCourses = new ArrayList<>();
+		for (Place shopping : pickShoppingPlaces(usedIds)) {
+			// Malls sit in dining districts, so the restaurant can stay in the same neighborhood too.
+			shoppingCourses.add(buildCourse(shopping, properties.sameAreaRadiusMeters(), usedIds));
 		}
 
-		return new WeekendPicks(days, weather, mode, theme, courses, fetchFestivals(days),
+		return new WeekendPicks(days, weather, mode, theme, courses, shoppingCourses, fetchFestivals(days),
 				fetchPerformances(today, recentIds));
 	}
 
@@ -150,9 +155,44 @@ public class RecommendationService {
 		return outings;
 	}
 
-	private Place pickNearby(String keyword, String categoryGroupCode, GeoPoint center, Set<String> usedIds) {
-		List<Place> candidates = kakaoLocalClient.searchKeyword(
-				keyword, categoryGroupCode, center, properties.courseRadiusMeters(), 1);
+	/**
+	 * Adds a restaurant near the main place and a bakery cafe in the same neighborhood as that restaurant,
+	 * so that the meal and the cafe never end up in different areas.
+	 */
+	private Course buildCourse(Place main, int restaurantRadiusMeters, Set<String> usedIds) {
+		usedIds.add(main.id());
+		Place restaurant = pickNearby(RESTAURANT_KEYWORD, KakaoLocalClient.RESTAURANT,
+				main.point(), restaurantRadiusMeters, usedIds);
+		GeoPoint cafeCenter = restaurant != null ? restaurant.point() : main.point();
+		Place bakery = pickNearby(BAKERY_KEYWORD, KakaoLocalClient.CAFE,
+				cafeCenter, properties.sameAreaRadiusMeters(), usedIds);
+		if (bakery == null) {
+			// No bakery cafe in the neighborhood: settle for any cafe rather than leaving the area.
+			bakery = pickNearby(CAFE_KEYWORD, KakaoLocalClient.CAFE,
+					cafeCenter, properties.sameAreaRadiusMeters(), usedIds);
+		}
+		return new Course(main, restaurant, bakery);
+	}
+
+	private List<Place> pickShoppingPlaces(Set<String> excludedIds) {
+		GeoPoint home = properties.home().point();
+		List<Place> candidates = new ArrayList<>();
+		for (String keyword : SHOPPING_KEYWORDS) {
+			kakaoLocalClient.searchKeyword(keyword, null, home, properties.searchRadiusMeters(), 1).stream()
+					.filter(RecommendationService::isVisitableShoppingPlace)
+					.forEach(candidates::add);
+		}
+		return placePicker.pick(candidates, excludedIds, properties.shoppingCourseCount());
+	}
+
+	/** Drops search noise such as information desks and stores that have not opened yet. */
+	static boolean isVisitableShoppingPlace(Place place) {
+		return SHOPPING_NAME_NOISE.stream().noneMatch(place.name()::contains);
+	}
+
+	private Place pickNearby(String keyword, String categoryGroupCode, GeoPoint center, int radiusMeters,
+			Set<String> usedIds) {
+		List<Place> candidates = kakaoLocalClient.searchKeyword(keyword, categoryGroupCode, center, radiusMeters, 1);
 		List<Place> picked = placePicker.pick(candidates, usedIds, 1);
 		if (picked.isEmpty()) {
 			return null;
