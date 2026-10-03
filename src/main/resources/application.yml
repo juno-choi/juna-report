@@ -1,0 +1,25 @@
+spring:
+  config:
+    # Local secrets; absent on GitHub Actions, where real environment variables are used instead.
+    import: optional:file:.env[.properties]
+  main:
+    banner-mode: off
+
+picks:
+  home:
+    name: 성남시 중원구 은행동
+    # Approximate coordinates of the neighborhood; override with env vars for precision.
+    latitude: ${HOME_LATITUDE:37.456}
+    longitude: ${HOME_LONGITUDE:127.167}
+  # Kakao Local API allows up to 20000m.
+  search-radius-meters: 20000
+  # Radius used to find a restaurant / bakery cafe around each outing place.
+  course-radius-meters: 5000
+  festival-radius-km: 30
+  course-count: 3
+  history:
+    file: data/history.json
+    keep-weeks: 8
+  kakao-rest-api-key: ${KAKAO_REST_API_KEY:}
+  data-go-kr-service-key: ${DATA_GO_KR_SERVICE_KEY:}
+  slack-webhook-url: ${SLACK_WEBHOOK_URL:}
