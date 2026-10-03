@@ -57,7 +57,7 @@ public class RecommendationService {
 		this.placePicker = placePicker;
 	}
 
-	/** Recommends for today and tomorrow; the job is scheduled every morning. */
+	/** Recommends for today and tomorrow; the job is scheduled on Friday, Saturday and Sunday mornings. */
 	public WeekendPicks recommend(LocalDateTime now) {
 		LocalDate today = now.toLocalDate();
 		List<LocalDate> days = List.of(today, today.plusDays(1));

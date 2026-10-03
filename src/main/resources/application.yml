@@ -19,7 +19,7 @@ picks:
   course-count: 3
   history:
     file: data/history.json
-    keep-weeks: 2
+    keep-weeks: 4
   kakao-rest-api-key: ${KAKAO_REST_API_KEY:}
   data-go-kr-service-key: ${DATA_GO_KR_SERVICE_KEY:}
   kopis-service-key: ${KOPIS_SERVICE_KEY:}

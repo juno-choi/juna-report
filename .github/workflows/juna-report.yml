@@ -2,8 +2,8 @@ name: juna-report
 
 on:
   schedule:
-    # 22:50 UTC = 07:50 KST next day, every day. Scheduled runs are often delayed, so start a little early.
-    - cron: '50 22 * * *'
+    # Thu/Fri/Sat 22:50 UTC = Fri/Sat/Sun 07:50 KST. Scheduled runs are often delayed, so start a little early.
+    - cron: '50 22 * * 4,5,6'
   workflow_dispatch:
 
 permissions:
