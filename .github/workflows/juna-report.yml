@@ -12,6 +12,8 @@ permissions:
 jobs:
   notify:
     runs-on: ubuntu-latest
+    # Secrets are stored as environment secrets, which are only exposed to jobs that name the environment.
+    environment: juna-secret
     steps:
       - uses: actions/checkout@v4
 
