@@ -5,12 +5,16 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import com.juno.weekendpicks.config.PicksProperties;
 import com.juno.weekendpicks.festival.Festival;
 import com.juno.weekendpicks.festival.TourApiClient;
+import com.juno.weekendpicks.performance.KopisClient;
+import com.juno.weekendpicks.performance.Performance;
 import com.juno.weekendpicks.place.KakaoLocalClient;
 import com.juno.weekendpicks.place.Place;
 import com.juno.weekendpicks.recommend.WeekendPicks.OutingMode;
@@ -28,6 +32,7 @@ public class RecommendationService {
 
 	private static final int CATEGORY_PAGES = 3;
 	private static final int MAX_FESTIVALS = 5;
+	private static final int PERFORMANCES_PER_GENRE = 3;
 	private static final String INDOOR_KEYWORD = "미술관";
 	private static final String RESTAURANT_KEYWORD = "맛집";
 	private static final String BAKERY_KEYWORD = "베이커리 카페";
@@ -36,21 +41,23 @@ public class RecommendationService {
 	private final WeatherClient weatherClient;
 	private final KakaoLocalClient kakaoLocalClient;
 	private final TourApiClient tourApiClient;
+	private final KopisClient kopisClient;
 	private final HistoryRepository historyRepository;
 	private final PlacePicker placePicker;
 
 	public RecommendationService(PicksProperties properties, WeatherClient weatherClient,
-			KakaoLocalClient kakaoLocalClient, TourApiClient tourApiClient,
+			KakaoLocalClient kakaoLocalClient, TourApiClient tourApiClient, KopisClient kopisClient,
 			HistoryRepository historyRepository, PlacePicker placePicker) {
 		this.properties = properties;
 		this.weatherClient = weatherClient;
 		this.kakaoLocalClient = kakaoLocalClient;
 		this.tourApiClient = tourApiClient;
+		this.kopisClient = kopisClient;
 		this.historyRepository = historyRepository;
 		this.placePicker = placePicker;
 	}
 
-	/** Recommends for today and tomorrow; the job is scheduled on Saturday morning. */
+	/** Recommends for today and tomorrow; the job is scheduled every morning. */
 	public WeekendPicks recommend(LocalDateTime now) {
 		LocalDate today = now.toLocalDate();
 		List<LocalDate> days = List.of(today, today.plusDays(1));
@@ -59,7 +66,8 @@ public class RecommendationService {
 		OutingMode mode = decideMode(weather);
 		SeasonalTheme theme = SeasonalTheme.of(today.getMonth());
 
-		Set<String> usedIds = new HashSet<>(historyRepository.recentPlaceIds(today));
+		Set<String> recentIds = historyRepository.recentPlaceIds(today);
+		Set<String> usedIds = new HashSet<>(recentIds);
 		List<Course> courses = new ArrayList<>();
 		for (Place outing : pickOutings(mode, theme, usedIds)) {
 			usedIds.add(outing.id());
@@ -68,7 +76,49 @@ public class RecommendationService {
 			courses.add(new Course(outing, restaurant, bakery));
 		}
 
-		return new WeekendPicks(days, weather, mode, theme, courses, fetchFestivals(days));
+		return new WeekendPicks(days, weather, mode, theme, courses, fetchFestivals(days),
+				fetchPerformances(today, recentIds));
+	}
+
+	/** Upcoming musicals and concerts in Seoul/Gyeonggi that were not announced in recent weeks. */
+	private List<Performance> fetchPerformances(LocalDate today, Set<String> recentIds) {
+		if (!properties.hasKopisServiceKey()) {
+			log.warn("KOPIS_SERVICE_KEY is not set; skipping performances");
+			return List.of();
+		}
+		LocalDate from = today.plusDays(1);
+		LocalDate to = today.plusWeeks(properties.performanceWeeksAhead());
+		try {
+			List<Performance> performances = new ArrayList<>();
+			for (String genre : List.of(KopisClient.GENRE_MUSICAL, KopisClient.GENRE_POPULAR_MUSIC)) {
+				List<Performance> candidates = new ArrayList<>();
+				for (String area : List.of(KopisClient.AREA_SEOUL, KopisClient.AREA_GYEONGGI)) {
+					candidates.addAll(kopisClient.fetchUpcoming(genre, area, from, to));
+				}
+				performances.addAll(selectUpcoming(candidates, recentIds, from, to, PERFORMANCES_PER_GENRE));
+			}
+			return performances;
+		}
+		catch (RuntimeException e) {
+			log.warn("Failed to fetch performances; continuing without them", e);
+			return List.of();
+		}
+	}
+
+	/** Soonest-starting performances first, skipping duplicates and ones already recommended. */
+	static List<Performance> selectUpcoming(List<Performance> candidates, Set<String> excludedIds,
+			LocalDate from, LocalDate to, int count) {
+		Map<String, Performance> unique = new LinkedHashMap<>();
+		for (Performance candidate : candidates) {
+			boolean startsInRange = !candidate.startDate().isBefore(from) && !candidate.startDate().isAfter(to);
+			if (startsInRange && !excludedIds.contains(candidate.id())) {
+				unique.putIfAbsent(candidate.id(), candidate);
+			}
+		}
+		return unique.values().stream()
+				.sorted(Comparator.comparing(Performance::startDate))
+				.limit(count)
+				.toList();
 	}
 
 	/** Outdoor unless the forecast is bad on every day; a missing forecast defaults to outdoor. */

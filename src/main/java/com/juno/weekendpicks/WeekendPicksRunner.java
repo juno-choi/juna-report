@@ -52,7 +52,8 @@ public class WeekendPicksRunner implements ApplicationRunner {
 			return;
 		}
 		jsonHttp.postJson(properties.slackWebhookUrl(), payload);
-		historyRepository.record(now.toLocalDate(), picks.placeIds());
-		log.info("Sent {} courses and {} festivals to Slack", picks.courses().size(), picks.festivals().size());
+		historyRepository.record(now.toLocalDate(), picks.recommendedIds());
+		log.info("Sent {} courses, {} festivals and {} performances to Slack",
+				picks.courses().size(), picks.festivals().size(), picks.performances().size());
 	}
 }

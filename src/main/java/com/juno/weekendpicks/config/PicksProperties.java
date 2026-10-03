@@ -16,6 +16,8 @@ public record PicksProperties(
 		History history,
 		String kakaoRestApiKey,
 		String dataGoKrServiceKey,
+		String kopisServiceKey,
+		int performanceWeeksAhead,
 		String slackWebhookUrl
 ) {
 
@@ -42,6 +44,10 @@ public record PicksProperties(
 
 	public boolean hasDataGoKrServiceKey() {
 		return dataGoKrServiceKey != null && !dataGoKrServiceKey.isBlank();
+	}
+
+	public boolean hasKopisServiceKey() {
+		return kopisServiceKey != null && !kopisServiceKey.isBlank();
 	}
 
 	public boolean hasSlackWebhookUrl() {

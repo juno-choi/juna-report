@@ -53,6 +53,12 @@ public class JsonHttp {
 		}
 	}
 
+	/** For APIs that answer in XML or plain text. */
+	public String getText(URI uri) {
+		byte[] body = restClient.get().uri(uri).retrieve().body(byte[].class);
+		return body == null ? "" : new String(body, StandardCharsets.UTF_8);
+	}
+
 	public void postJson(String url, Object payload) {
 		restClient.post()
 				.uri(URI.create(url))

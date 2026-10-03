@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 
 import com.juno.weekendpicks.config.PicksProperties;
 import com.juno.weekendpicks.festival.Festival;
+import com.juno.weekendpicks.performance.Performance;
 import com.juno.weekendpicks.place.Place;
 import com.juno.weekendpicks.recommend.Course;
 import com.juno.weekendpicks.recommend.WeekendPicks;
@@ -34,7 +35,7 @@ public class SlackMessageBuilder {
 	}
 
 	public Map<String, Object> build(WeekendPicks picks) {
-		String title = "🧺 이번 주말 나들이 추천 (%s~%s)".formatted(
+		String title = "🧺 오늘의 나들이 추천 (%s~%s)".formatted(
 				picks.days().get(0).format(SHORT_DATE),
 				picks.days().get(picks.days().size() - 1).format(SHORT_DATE));
 
@@ -53,6 +54,10 @@ public class SlackMessageBuilder {
 		if (!picks.festivals().isEmpty()) {
 			blocks.add(Map.of("type", "divider"));
 			blocks.add(section(festivalText(picks.festivals())));
+		}
+		if (!picks.performances().isEmpty()) {
+			blocks.add(Map.of("type", "divider"));
+			blocks.add(section(performanceText(picks.performances())));
 		}
 		blocks.add(Map.of("type", "context", "elements", List.of(
 				Map.of("type", "mrkdwn", "text", "영업 여부와 휴무일은 지도 링크에서 확인하세요."))));
@@ -77,7 +82,7 @@ public class SlackMessageBuilder {
 
 	private String adviceText(WeekendPicks picks) {
 		if (picks.mode() == OutingMode.INDOOR) {
-			return "☔ 주말 내내 야외 활동이 어려워 보여서 *실내 위주*로 골랐어요.";
+			return "☔ 오늘과 내일 모두 야외 활동이 어려워 보여서 *실내 위주*로 골랐어요.";
 		}
 		String theme = "%s 이번 달 테마: *%s*".formatted(picks.theme().emoji(), picks.theme().label());
 		List<DailyWeather> goodDays = picks.weather().stream().filter(DailyWeather::isGoodForOutdoor).toList();
@@ -103,11 +108,20 @@ public class SlackMessageBuilder {
 	}
 
 	private String festivalText(List<Festival> festivals) {
-		return "*🎪 이번 주말 근처 축제*\n" + festivals.stream()
+		return "*🎪 지금 열리는 근처 축제*\n" + festivals.stream()
 				.map(festival -> "• %s (%s~%s · %.0fkm) %s".formatted(
 						link(KAKAO_MAP_SEARCH_URL + JsonHttp.encode(festival.title()).replace("+", "%20"), festival.title()),
 						festival.startDate().format(SHORT_DATE), festival.endDate().format(SHORT_DATE),
 						home.distanceKmTo(festival.point()), escape(festival.address())))
+				.collect(Collectors.joining("\n"));
+	}
+
+	private static String performanceText(List<Performance> performances) {
+		return "*🎭 곧 시작하는 공연 (서울·경기)*\n" + performances.stream()
+				.map(performance -> "• [%s] %s (%s~%s) %s".formatted(
+						escape(performance.genre()), link(performance.url(), performance.name()),
+						performance.startDate().format(SHORT_DATE), performance.endDate().format(SHORT_DATE),
+						escape(performance.venue())))
 				.collect(Collectors.joining("\n"));
 	}
 

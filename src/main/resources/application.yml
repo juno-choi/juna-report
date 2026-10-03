@@ -19,7 +19,10 @@ picks:
   course-count: 3
   history:
     file: data/history.json
-    keep-weeks: 8
+    keep-weeks: 2
   kakao-rest-api-key: ${KAKAO_REST_API_KEY:}
   data-go-kr-service-key: ${DATA_GO_KR_SERVICE_KEY:}
+  kopis-service-key: ${KOPIS_SERVICE_KEY:}
+  # Upcoming performances starting within this many weeks are listed.
+  performance-weeks-ahead: 8
   slack-webhook-url: ${SLACK_WEBHOOK_URL:}
